@@ -33,9 +33,14 @@ jobs:
           cp index.html deploy/
           cp post.html deploy/
 
+      - name: Create deployment zip
+        run: |
+          cd deploy
+          zip -r ../site.zip .
+
       - name: Deploy to Azure
         uses: azure/webapps-deploy@v3
         with:
           app-name: portfoliod
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: ./deploy
+          package: site.zip
