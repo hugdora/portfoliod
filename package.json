@@ -18,7 +18,7 @@
     "@tailwindcss/aspect-ratio": "^0.4.0",
     "@tailwindcss/forms": "^0.4.0",
     "@tailwindcss/typography": "^0.5.2",
-    "browser-sync": "^2.27.7",
+    "browser-sync": "^3.0.4",
     "concurrently": "^7.0.0",
     "cssnano": "^5.0.17",
     "postcss-cli": "^9.1.0"
