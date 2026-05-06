@@ -1,26 +1,26 @@
-FROM node:18-alpine
+FROM nginx:alpine
 
-# Create app directory
-WORKDIR /usr/src/app
+# Remove default NGINX content
+RUN rm -rf /usr/share/nginx/html/*
 
-# Copy package files first (layer caching)
-COPY package*.json ./
+# Copy static site files
+COPY index.html /usr/share/nginx/html/
+COPY post.html /usr/share/nginx/html/
+COPY assets/ /usr/share/nginx/html/assets/
 
-# Install production dependencies only
-RUN npm ci --only=production
+# Custom NGINX config for health probes and clean routing
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy app source
-COPY server.js .
+# Run as non-root for security
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid
 
-# Run as non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-USER appuser
+USER nginx
 
-# Expose port
-EXPOSE 3000
+EXPOSE 80
 
-# Health check built into image
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:3000/live || exit 1
-
-CMD ["node", "server.js"]
+  CMD wget -qO- http://localhost/live || exit 1
