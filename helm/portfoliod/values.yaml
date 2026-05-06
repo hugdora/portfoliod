@@ -13,7 +13,7 @@ service:
 ingress:
   enabled: true
   className: nginx
-  host: portfoliod.local
+  host: ""
 
 resources:
   requests:
