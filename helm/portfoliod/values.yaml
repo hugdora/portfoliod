@@ -1,0 +1,38 @@
+replicaCount: 2
+
+image:
+  repository: hugdora/portfoliod
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  host: portfoliod.local
+
+resources:
+  requests:
+    memory: "32Mi"
+    cpu: "50m"
+  limits:
+    memory: "64Mi"
+    cpu: "100m"
+
+probes:
+  readiness:
+    path: /ready
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  liveness:
+    path: /live
+    initialDelaySeconds: 15
+    periodSeconds: 10
+  startup:
+    path: /live
+    failureThreshold: 6
+    periodSeconds: 5

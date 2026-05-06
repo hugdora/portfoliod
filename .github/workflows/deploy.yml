@@ -1,0 +1,92 @@
+name: Build and Deploy to EKS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  DOCKERHUB_USERNAME: hugdora
+  IMAGE_NAME: hugdora/portfoliod
+  CLUSTER_NAME: portfoliod-cluster
+  CLUSTER_REGION: eu-west-2
+
+jobs:
+  # ── Job 1: Build and push Docker image ──────────────────────────────────────
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+  # ── Job 2: Deploy to EKS ─────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to EKS via Helm
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via IAM OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_EKS }}
+          aws-region: ${{ env.CLUSTER_REGION }}
+
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ env.CLUSTER_NAME }} \
+            --region ${{ env.CLUSTER_REGION }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.14.0
+
+      - name: Install NGINX Ingress Controller (if not present)
+        run: |
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo update
+          helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+            --namespace ingress-nginx \
+            --create-namespace \
+            --set controller.service.type=LoadBalancer \
+            --wait --timeout=120s || true
+
+      - name: Deploy portfoliod with Helm
+        run: |
+          helm upgrade --install portfoliod ./helm/portfoliod \
+            --set image.tag=${{ github.sha }} \
+            --wait --timeout=120s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -l app=portfoliod
+          kubectl get service portfoliod-service
+          kubectl get ingress portfoliod-ingress
+          echo "✅ Deployed successfully"

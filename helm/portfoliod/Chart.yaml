@@ -1,0 +1,6 @@
+apiVersion: v2
+name: portfoliod
+description: Static portfolio site deployed on Kubernetes via NGINX
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
